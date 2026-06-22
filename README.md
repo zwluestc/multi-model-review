@@ -123,44 +123,34 @@ Codex 应该只报告问题，不应该直接修复。
 
 ### 配置 2 个外部模型，用于 hybrid
 
-运行：
+先在终端导出两组变量：
+
+```bash
+export LLM_API_URL1="https://www.dmxapi.cn/v1/chat/completions"
+export API_KEY1="你的第一个 API key"
+export MODEL1="glm-5"
+
+export LLM_API_URL2="https://www.dmxapi.cn/v1/chat/completions"
+export API_KEY2="你的第二个 API key"
+export MODEL2="claude-opus-4.6"
+```
+
+然后运行：
 
 ```bash
 python3 scripts/configure_external_models.py
 ```
 
-当它询问数量时输入：
+模型名完全由你的接口决定，脚本不会限制。可以是官方模型名，也可以是中转服务里的别名，例如：
 
 ```text
-2
+glm5
+glm-5.2
+deepseek-v4-pro
+claude-opus-4.6
 ```
 
-然后依次输入：
-
-```text
-name
-url
-model
-api key
-```
-
-示例：
-
-```text
-number of external models, 2 for hybrid or 3 for external [2]: 2
-
-Model 1
-  name [glm]: glm
-  url: https://your-proxy.example.com/v1/chat/completions
-  model: glm-custom
-  api key for MMR_GLM_API_KEY: ********
-
-Model 2
-  name [deepseek]: deepseek
-  url: https://your-proxy.example.com/v1/chat/completions
-  model: deepseek-v4-pro
-  api key for MMR_DEEPSEEK_API_KEY: ********
-```
+可选：如果你想自定义报告里的模型名字，可以额外设置 `MODEL_NAME1`、`MODEL_NAME2`。
 
 脚本会生成：
 
@@ -187,40 +177,26 @@ hybrid 的默认结构是：
 
 ### 配置 3 个外部模型，用于 external
 
-如果你想使用 3 个不同模型，例如 GLM、DeepSeek、Claude：
+如果你想使用 3 个不同模型，例如 GLM、DeepSeek、Claude，导出三组变量：
+
+```bash
+export LLM_API_URL1="https://www.dmxapi.cn/v1/chat/completions"
+export API_KEY1="你的第一个 API key"
+export MODEL1="glm-5"
+
+export LLM_API_URL2="https://www.dmxapi.cn/v1/chat/completions"
+export API_KEY2="你的第二个 API key"
+export MODEL2="deepseek-v4-pro"
+
+export LLM_API_URL3="https://www.dmxapi.cn/v1/chat/completions"
+export API_KEY3="你的第三个 API key"
+export MODEL3="claude-opus-4.6"
+```
+
+然后运行：
 
 ```bash
 python3 scripts/configure_external_models.py
-```
-
-当它询问数量时输入：
-
-```text
-3
-```
-
-示例：
-
-```text
-number of external models, 2 for hybrid or 3 for external [2]: 3
-
-Model 1
-  name [glm]: glm
-  url: https://your-proxy.example.com/v1/chat/completions
-  model: glm-custom
-  api key for MMR_GLM_API_KEY: ********
-
-Model 2
-  name [deepseek]: deepseek
-  url: https://your-proxy.example.com/v1/chat/completions
-  model: deepseek-v4-pro
-  api key for MMR_DEEPSEEK_API_KEY: ********
-
-Model 3
-  name [claude]: claude
-  url: https://your-proxy.example.com/v1/chat/completions
-  model: claude-custom
-  api key for MMR_CLAUDE_API_KEY: ********
 ```
 
 然后在 Codex 里说：

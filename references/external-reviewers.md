@@ -8,13 +8,21 @@ Copy `external-reviewers.example.json` to a user-controlled path outside the Ski
 
 The runner loads credentials from process environment variables first, then from the Skill-local `.env.local` without overriding existing variables. Restrict `.env.local` to the current user and never share or commit it.
 
-For the common case where you want to provide two or three custom external models at the terminal, run:
+For the common case where you want to provide two or three custom external models at the terminal, export numbered environment variables first:
 
 ```bash
+export LLM_API_URL1="https://www.dmxapi.cn/v1/chat/completions"
+export API_KEY1="..."
+export MODEL1="glm-5"
+
+export LLM_API_URL2="https://www.dmxapi.cn/v1/chat/completions"
+export API_KEY2="..."
+export MODEL2="claude-opus-4.6"
+
 python3 scripts/configure_external_models.py
 ```
 
-Enter `2` for hybrid mode or `3` for external mode, then enter `name`, `url`, `model`, and `api key` for each model. The model name is passed through exactly as entered, so it may be an official model name or a proxy-defined alias such as `deepseek-v4-pro`, `glm-5.2`, or a Claude alias. The URL must be an OpenAI-compatible chat-completions endpoint.
+Add `LLM_API_URL3`, `API_KEY3`, and `MODEL3` when configuring three external models for `external` mode. The model name is passed through exactly as entered, so it may be an official model name or a proxy-defined alias such as `deepseek-v4-pro`, `glm-5.2`, or a Claude alias. The URL must be an OpenAI-compatible chat-completions endpoint.
 
 The script writes:
 

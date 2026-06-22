@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import getpass
 import json
+import os
 import re
 from pathlib import Path
 
@@ -26,11 +27,28 @@ def prompt_text(label: str, default: str | None = None) -> str:
             return default
 
 
+def env_text(name: str) -> str | None:
+    value = os.environ.get(name)
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
+
 def env_key(name: str, index: int) -> str:
     normalized = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_").upper()
     if not normalized:
         normalized = f"MODEL_{index}"
     return f"MMR_{normalized}_API_KEY"
+
+
+def runtime_key(index: int) -> str:
+    return f"MMR_API_KEY{index}"
+
+
+def reviewer_name(value: str, fallback: str) -> str:
+    normalized = re.sub(r"[^A-Za-z0-9_.-]+", "-", value).strip("-")
+    return normalized or fallback
 
 
 def read_existing_env() -> dict[str, str]:
@@ -81,50 +99,101 @@ def reviewer_config(
 
 def main() -> int:
     print("Configure two or three OpenAI-compatible external models.")
+    print("Preferred input: LLM_API_URL1/API_KEY1/MODEL1 and LLM_API_URL2/API_KEY2/MODEL2.")
     print("API keys are written only to .env.local; JSON configs store env names.")
     print()
 
-    count_text = prompt_text("number of external models, 2 for hybrid or 3 for external", "2")
-    while count_text not in {"2", "3"}:
-        count_text = prompt_text("number of external models, 2 for hybrid or 3 for external", "2")
-    model_count = int(count_text)
-
-    prompt_cycle = [
-        ("glm", "correctness-review"),
-        ("deepseek", "testing-review"),
-        ("claude", "adversarial-review"),
+    slots = [
+        "correctness-review",
+        "testing-review",
+        "adversarial-review",
     ]
     models: list[dict[str, str]] = []
     existing_env = read_existing_env()
 
-    for index, (default_name, default_prompt_id) in enumerate(
-        prompt_cycle[:model_count], start=1
-    ):
-        print(f"Model {index}")
-        name = prompt_text("  name", default_name)
-        endpoint = prompt_text("  url")
-        model = prompt_text("  model")
-        key_name = env_key(name, index)
-        current_value = existing_env.get(key_name)
-        key_prompt = f"  api key for {key_name}"
-        if current_value:
-            api_key = getpass.getpass(f"{key_prompt} [press Enter to keep existing]: ")
-            api_key = api_key.strip() or current_value
-        else:
-            api_key = getpass.getpass(f"{key_prompt}: ").strip()
-            while not api_key:
+    env_slots = []
+    for index in range(1, 4):
+        endpoint = env_text(f"LLM_API_URL{index}")
+        api_key = env_text(f"API_KEY{index}")
+        model = env_text(f"MODEL{index}")
+        present = [endpoint is not None, api_key is not None, model is not None]
+        if any(present) and not all(present):
+            missing = [
+                name
+                for name, value in (
+                    (f"LLM_API_URL{index}", endpoint),
+                    (f"API_KEY{index}", api_key),
+                    (f"MODEL{index}", model),
+                )
+                if value is None
+            ]
+            raise ValueError(f"model slot {index} missing: {', '.join(missing)}")
+        if all(present):
+            env_slots.append((index, endpoint, api_key, model))
+
+    if env_slots:
+        if len(env_slots) not in {2, 3}:
+            raise ValueError("configure exactly 2 model slots for hybrid or 3 for external")
+        for position, (index, endpoint, api_key, model) in enumerate(env_slots, start=1):
+            prompt_id = slots[position - 1]
+            key_name = runtime_key(position)
+            existing_env[key_name] = api_key
+            models.append(
+                {
+                    "name": reviewer_name(
+                        env_text(f"MODEL_NAME{index}") or model,
+                        f"model{position}",
+                    ),
+                    "endpoint": endpoint,
+                    "model": model,
+                    "api_key_env": key_name,
+                    "prompt_id": prompt_id,
+                }
+            )
+    else:
+        count_text = prompt_text("number of external models, 2 for hybrid or 3 for external", "2")
+        while count_text not in {"2", "3"}:
+            count_text = prompt_text("number of external models, 2 for hybrid or 3 for external", "2")
+        model_count = int(count_text)
+
+        prompt_cycle = [
+            ("glm", "correctness-review"),
+            ("deepseek", "testing-review"),
+            ("claude", "adversarial-review"),
+        ]
+
+        for index, (default_name, default_prompt_id) in enumerate(
+            prompt_cycle[:model_count], start=1
+        ):
+            print(f"Model {index}")
+            name = prompt_text("  name", default_name)
+            endpoint = prompt_text("  url")
+            model = prompt_text("  model")
+            key_name = env_key(name, index)
+            current_value = existing_env.get(key_name)
+            key_prompt = f"  api key for {key_name}"
+            if current_value:
+                api_key = getpass.getpass(f"{key_prompt} [press Enter to keep existing]: ")
+                api_key = api_key.strip() or current_value
+            else:
                 api_key = getpass.getpass(f"{key_prompt}: ").strip()
-        existing_env[key_name] = api_key
-        models.append(
-            {
-                "name": name,
-                "endpoint": endpoint,
-                "model": model,
-                "api_key_env": key_name,
-                "prompt_id": default_prompt_id,
-            }
-        )
-        print()
+                while not api_key:
+                    api_key = getpass.getpass(f"{key_prompt}: ").strip()
+            existing_env[key_name] = api_key
+            models.append(
+                {
+                    "name": name,
+                    "endpoint": endpoint,
+                    "model": model,
+                    "api_key_env": key_name,
+                    "prompt_id": default_prompt_id,
+                }
+            )
+            print()
+
+    for model in models:
+        print(f"Configured {model['name']}: {model['model']} -> {model['endpoint']}")
+    print()
 
     RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
     write_env(existing_env)
